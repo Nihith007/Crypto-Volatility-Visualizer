@@ -1,4 +1,4 @@
-# FA2
+# Crypto Volatility Visualizer
 Crypto Volatility Visualizer
 
 

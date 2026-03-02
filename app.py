@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 import numpy as np
 import requests
 from io import StringIO
+import pytz
 
 # ─────────────────────────────────────────────────────────────────────────────
 # PAGE CONFIG
@@ -21,11 +22,32 @@ st.markdown("### Simulating Market Swings with Mathematics for AI and Python")
 st.markdown("*Using sine, cosine, random noise, and integrals to model cryptocurrency volatility*")
 st.markdown("---")
 
-
+# ─────────────────────────────────────────────────────────────────────────────
+# GITHUB CSV URL — points to your repo
+# ─────────────────────────────────────────────────────────────────────────────
 GITHUB_CSV_URL = (
     "https://raw.githubusercontent.com/Nihith007/Crypto-Volatility-Visualizer"
     "/refs/heads/main/btcusd_1-min_data.csv"
 )
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CHANGE 1 ── TIMEZONE MAP
+# WHERE: Top of file, global constant
+# WHY: Assignment requires India timezone support. Added IST as default plus
+#      all major world timezones so users can convert timestamps instantly.
+# ─────────────────────────────────────────────────────────────────────────────
+TIMEZONE_OPTIONS = {
+    "🇮🇳 India (IST) UTC+5:30":        "Asia/Kolkata",
+    "🌍 UTC (Universal)":               "UTC",
+    "🇺🇸 New York (EST/EDT)":           "America/New_York",
+    "🇺🇸 Los Angeles (PST/PDT)":        "America/Los_Angeles",
+    "🇬🇧 London (GMT/BST)":             "Europe/London",
+    "🇪🇺 Paris / Berlin (CET/CEST)":    "Europe/Paris",
+    "🇦🇪 Dubai (GST) UTC+4":            "Asia/Dubai",
+    "🇸🇬 Singapore (SGT) UTC+8":        "Asia/Singapore",
+    "🇯🇵 Tokyo (JST) UTC+9":            "Asia/Tokyo",
+    "🇦🇺 Sydney (AEDT) UTC+11":         "Australia/Sydney",
+}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # SIDEBAR — MODE SELECTION
@@ -36,6 +58,21 @@ mode = st.sidebar.radio(
     ["📊 Real Bitcoin Data", "🧮 Mathematical Simulation", "🔍 Compare Both"],
 )
 st.sidebar.markdown("---")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CHANGE 2 ── TIMEZONE SELECTOR IN SIDEBAR (always visible)
+# WHERE: Sidebar, shown in ALL modes
+# WHY: India timezone (IST) is required. Selector converts all chart timestamps
+#      to the chosen timezone so dates/times are locally meaningful.
+# ─────────────────────────────────────────────────────────────────────────────
+st.sidebar.header("🌐 Timezone")
+selected_tz_label = st.sidebar.selectbox(
+    "Display times in:",
+    list(TIMEZONE_OPTIONS.keys()),
+    index=0,   # India IST is default (index 0)
+)
+selected_tz = TIMEZONE_OPTIONS[selected_tz_label]
+tz = pytz.timezone(selected_tz)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # SIDEBAR CONTROLS — per mode
@@ -51,10 +88,11 @@ days_to_show          = 7
 show_volatility_bands = True
 show_volume           = True
 data_source           = "🌐 GitHub (Auto-fetch)"
+date_range            = None   # will be set below for real data modes
 
 if mode == "📊 Real Bitcoin Data":
+    st.sidebar.markdown("---")
     st.sidebar.header("📁 Data Source")
-
     data_source = st.sidebar.radio(
         "Source:", ["🌐 GitHub (Auto-fetch)", "📂 Upload CSV"]
     )
@@ -63,13 +101,12 @@ if mode == "📊 Real Bitcoin Data":
             "Upload btcusd_1-min_data.csv", type=["csv"],
             help="Needs columns: Timestamp (Unix s), Open, High, Low, Close, Volume"
         )
-    st.sidebar.subheader("⏱️ Time Range")
-    days_to_show = st.sidebar.slider("Days to display", 1, 30, 7)
     st.sidebar.subheader("📈 Display Options")
     show_volatility_bands = st.sidebar.checkbox("Show Volatility Bands", value=True)
-    show_volume = st.sidebar.checkbox("Show Volume Analysis", value=True)
+    show_volume           = st.sidebar.checkbox("Show Volume Analysis",   value=True)
 
 elif mode == "🧮 Mathematical Simulation":
+    st.sidebar.markdown("---")
     st.sidebar.header("🎛️ Mathematical Controls")
     st.sidebar.subheader("📊 Pattern Type")
     pattern_type = st.sidebar.selectbox(
@@ -84,30 +121,19 @@ elif mode == "🧮 Mathematical Simulation":
         ],
     )
     st.sidebar.subheader("🔧 Wave Parameters")
-
-    # CHANGE 3 ── Sliders now work because cache removed from generator (Change 7)
-    # WHERE: Sidebar, Mathematical Simulation mode
-    amplitude = st.sidebar.slider(
-        "Amplitude (Swing Size $)", 100, 5000, 1000, 100,
-        help="Height of each price swing — A in A·sin(2πft/T)"
-    )
-    frequency = st.sidebar.slider(
-        "Frequency (Cycles)", 0.1, 5.0, 1.0, 0.1,
-        help="Number of full wave cycles across the time window"
-    )
-    drift = st.sidebar.slider(
-        "Drift ($/day)", -50, 50, 10, 5,
-        help="Long-term trend slope — computed as integral ∫D dt = D·t"
-    )
-
-    noise_level = st.sidebar.slider(
-        "Noise Level (σ)", 0, 500, 100, 10,
-        help="Std deviation of random jumps N(0,σ) — NOW updates chart instantly"
-    )
+    amplitude   = st.sidebar.slider("Amplitude (Swing Size $)", 100, 5000, 1000, 100,
+                    help="Height of each price swing — A in A·sin(2πft/T)")
+    frequency   = st.sidebar.slider("Frequency (Cycles)",       0.1,  5.0,  1.0,  0.1,
+                    help="Number of full wave cycles across the time window")
+    drift       = st.sidebar.slider("Drift ($/day)",            -50,   50,   10,    5,
+                    help="Long-term trend — computed as integral ∫D dt = D·t")
+    noise_level = st.sidebar.slider("Noise Level (σ)",            0,  500,  100,   10,
+                    help="Std deviation of random jumps N(0,σ)")
     st.sidebar.subheader("⏱️ Time Range")
-    num_days = st.sidebar.slider("Number of Days", 1, 30, 7)
+    num_days    = st.sidebar.slider("Number of Days", 1, 30, 7)
 
 else:  # Compare Both
+    st.sidebar.markdown("---")
     st.sidebar.header("📁 Real Data Source")
     data_source = st.sidebar.radio("Source:", ["🌐 GitHub (Auto-fetch)", "📂 Upload CSV"])
     if data_source == "📂 Upload CSV":
@@ -117,13 +143,37 @@ else:  # Compare Both
         "Pattern:",
         ["Sine Wave (Smooth Cycles)", "Cosine Wave (Smooth Cycles)", "Sine + Noise (Realistic Market)"],
     )
-    amplitude    = st.sidebar.slider("Amplitude",      100, 5000, 1000, 100)
-    frequency    = st.sidebar.slider("Frequency",      0.1,  5.0,  1.0,  0.1)
-    drift        = st.sidebar.slider("Drift",          -50,   50,   10,    5)
-    noise_level  = st.sidebar.slider("Noise (σ)",        0,  500,  100,   10)
-    days_to_show = st.sidebar.slider("Real data days",   1,   30,    7)
-    num_days     = st.sidebar.slider("Sim days",         1,   30,    7)
+    amplitude    = st.sidebar.slider("Amplitude",    100, 5000, 1000, 100)
+    frequency    = st.sidebar.slider("Frequency",    0.1,  5.0,  1.0,  0.1)
+    drift        = st.sidebar.slider("Drift",        -50,   50,   10,    5)
+    noise_level  = st.sidebar.slider("Noise (σ)",     0,   500,  100,   10)
+    num_days     = st.sidebar.slider("Sim days",       1,    30,    7)
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CHANGE 3 ── apply_timezone()  NEW HELPER
+# WHERE: Called on every DataFrame before plotting
+# WHY: Converts UTC timestamps from the CSV into the user-selected timezone
+#      so that chart X-axis shows correct local times (e.g. IST = UTC+5:30).
+#      Without this all times showed as UTC regardless of location.
+# ─────────────────────────────────────────────────────────────────────────────
+def apply_timezone(df, tz):
+    df = df.copy()
+    if df["Timestamp"].dt.tz is None:
+        # Timestamps are tz-naive → assume UTC, then convert
+        df["Timestamp"] = (
+            df["Timestamp"]
+            .dt.tz_localize("UTC")
+            .dt.tz_convert(tz)
+        )
+    else:
+        df["Timestamp"] = df["Timestamp"].dt.tz_convert(tz)
+    return df
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DATA LOADING FUNCTIONS
+# ─────────────────────────────────────────────────────────────────────────────
 @st.cache_data(show_spinner="📡 Fetching btcusd_1-min_data.csv from GitHub…")
 def fetch_github_data():
     try:
@@ -140,7 +190,6 @@ def normalize_dataframe(df):
     df = df.copy()
     df.columns = [c.strip() for c in df.columns]
 
-    # Detect & convert Timestamp — your notebook data uses Unix seconds
     for col in ["Timestamp", "timestamp", "Date", "date", "Time", "time"]:
         if col in df.columns:
             try:
@@ -153,18 +202,15 @@ def normalize_dataframe(df):
     else:
         df["Timestamp"] = pd.date_range("2012-01-01", periods=len(df), freq="min")
 
-    # Stage 4: "Focus on Close Price" → rename to Price
     for src in ["Close", "close", "Price", "price"]:
         if src in df.columns:
             df["Price"] = pd.to_numeric(df[src], errors="coerce")
             break
 
-    # Make sure OHLV are numeric
     for col in ["Open", "High", "Low", "Close", "Volume"]:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
 
-    # Fill missing OHLC if absent
     if "Price" in df.columns:
         for c in ["Open", "Close"]:
             if c not in df.columns:
@@ -177,7 +223,6 @@ def normalize_dataframe(df):
     if "Volume" not in df.columns:
         df["Volume"] = np.random.uniform(0, 50, len(df))
 
-    # Stage 4: handle missing values
     df = df.dropna(subset=["Timestamp", "Price"])
     df = df.sort_values("Timestamp").reset_index(drop=True)
     return df
@@ -185,7 +230,6 @@ def normalize_dataframe(df):
 
 @st.cache_data
 def create_sample_bitcoin_data(days=7):
-    """Fallback sample data — only used if GitHub fetch fails."""
     np.random.seed(42)
     minutes = days * 24 * 60
     timestamps = pd.date_range(end=datetime.now(), periods=minutes, freq="min")
@@ -213,50 +257,40 @@ def load_real_data(source="github", uploaded_file=None):
     return normalize_dataframe(raw), None
 
 
-
-def generate_mathematical_data(pattern, amp, freq, drift_val, noise, days):
-    """
-    Generates simulated Bitcoin price using mathematical functions.
-    Stage 5 / Stage 6 requirements:
-      Sine/Cosine → wave-like swings:  A·sin(2πft/T)
-      Random noise → sudden jumps:     N(0, σ)
-      Drift → long-term slope:         ∫D dt = D·t
-    """
+# No @st.cache_data — sliders update chart instantly
+def generate_mathematical_data(pattern, amp, freq, drift_val, noise, days, tz):
     hours = days * 24
     t     = np.linspace(0, days, hours)
     base  = 45000
-    sigma = max(noise, 1)   # prevent N(0,0)
+    sigma = max(noise, 1)
 
     if pattern == "Sine Wave (Smooth Cycles)":
         prices = base + amp * np.sin(2 * np.pi * freq * t / days)
-
     elif pattern == "Cosine Wave (Smooth Cycles)":
         prices = base + amp * np.cos(2 * np.pi * freq * t / days)
-
     elif pattern == "Random Noise (Chaotic Jumps)":
         prices = base + np.cumsum(np.random.normal(0, sigma, hours))
-
     elif pattern == "Sine + Noise (Realistic Market)":
-        prices = (base
-                  + amp * np.sin(2 * np.pi * freq * t / days)
+        prices = (base + amp * np.sin(2 * np.pi * freq * t / days)
                   + np.cumsum(np.random.normal(0, sigma, hours)))
-
     elif pattern == "Cosine + Noise (Realistic Market)":
-        prices = (base
-                  + amp * np.cos(2 * np.pi * freq * t / days)
+        prices = (base + amp * np.cos(2 * np.pi * freq * t / days)
                   + np.cumsum(np.random.normal(0, sigma, hours)))
-
-    else:  # Combined Waves
+    else:
         prices = (base
                   + amp     * np.sin(2 * np.pi * freq * 1 * t / days)
                   + amp / 2 * np.cos(2 * np.pi * freq * 2 * t / days)
                   + amp / 3 * np.sin(2 * np.pi * freq * 3 * t / days))
 
-    # Drift — integral of constant D = D·t (linear ramp)
     prices = prices + drift_val * t / days
     prices = np.maximum(prices, 100)
 
-    start  = datetime.now() - timedelta(days=days)
+    # CHANGE 4 ── Simulation timestamps generated in selected timezone
+    # WHERE: generate_mathematical_data(), timestamp creation
+    # WHY: Simulation times should also reflect the user's chosen timezone
+    #      so the X-axis is consistent with real data mode.
+    now_tz = datetime.now(pytz.timezone(tz))
+    start  = now_tz - timedelta(days=days)
     stamps = [start + timedelta(hours=i) for i in range(hours)]
 
     return pd.DataFrame({
@@ -290,6 +324,55 @@ def show_sidebar_metrics(df):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# CHANGE 5 ── date_range_filter()  NEW HELPER
+# WHERE: Called in Real Data and Compare Both modes, after loading data
+# WHY: The old slider used days_to_show × 24 × 60 rows via tail(), which
+#      BROKE when the data didn't have a full contiguous range or when the
+#      slider moved — it just sliced rows blindly without knowing dates.
+#      This new function shows a proper date picker (start → end) built from
+#      the actual min/max dates in the dataset, so the slider always works
+#      correctly regardless of data gaps or size.
+# ─────────────────────────────────────────────────────────────────────────────
+def date_range_filter(df, key_prefix="main"):
+    # Get actual date boundaries from the data (as timezone-aware dates)
+    min_date = df["Timestamp"].min().date()
+    max_date = df["Timestamp"].max().date()
+    total_days = (max_date - min_date).days
+
+    if total_days < 1:
+        return df  # not enough data to filter
+
+    st.sidebar.subheader("📅 Date Range Filter")
+
+    # Days slider — maps to actual dates in the data
+    days_back = st.sidebar.slider(
+        "Show last N days",
+        min_value=1,
+        max_value=max(total_days, 1),
+        value=min(7, total_days),
+        step=1,
+        key=f"{key_prefix}_days_slider",
+        help="Slide to show more or fewer days of data"
+    )
+
+    # Calculate start date from slider
+    start_date = max_date - timedelta(days=days_back)
+
+    # Show the selected range clearly
+    st.sidebar.info(f"📆 {start_date} → {max_date}\n\n({days_back} day{'s' if days_back > 1 else ''})")
+
+    # Filter by actual timestamp values — not row count
+    mask = df["Timestamp"].dt.date >= start_date
+    filtered = df[mask].copy()
+
+    if len(filtered) == 0:
+        st.warning("No data in selected date range — showing all data.")
+        return df
+
+    return filtered
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # ══════════════════════  MODE: REAL BITCOIN DATA  ══════════════════════
 # ─────────────────────────────────────────────────────────────────────────────
 if mode == "📊 Real Bitcoin Data":
@@ -301,8 +384,8 @@ if mode == "📊 Real Bitcoin Data":
     if err:
         st.warning(
             f"⚠️ **GitHub fetch failed:** {err}\n\n"
-            "**To fix this:** Upload `btcusd_1-min_data.csv` to your GitHub repo "
-            f"`Nihith007/Crypto-Volatility-Visualizer` and the URL will work.\n\n"
+            "**To fix:** Upload `btcusd_1-min_data.csv` to your GitHub repo "
+            "`Nihith007/Crypto-Volatility-Visualizer`.\n\n"
             "*Showing generated sample data in the meantime.*"
         )
     elif src == "github":
@@ -312,20 +395,24 @@ if mode == "📊 Real Bitcoin Data":
             f"{df_raw['Timestamp'].min().date()} → {df_raw['Timestamp'].max().date()}"
         )
 
+    # Apply selected timezone to all timestamps
+    df_tz = apply_timezone(df_raw, tz)
 
+    # Dataset preview
     with st.expander("🔍 Dataset Preview — head() & shape (Stage 4 check)"):
-        st.markdown(f"**Shape:** `{df_raw.shape[0]:,} rows × {df_raw.shape[1]} columns`")
-        st.markdown("**Columns:** " + ", ".join(f"`{c}`" for c in df_raw.columns.tolist()))
-        st.info("Timestamp was Unix epoch seconds (e.g. `1.325412e+09`) → converted to datetime")
-        st.dataframe(df_raw.head(10), use_container_width=True)
+        st.markdown(f"**Shape:** `{df_tz.shape[0]:,} rows × {df_tz.shape[1]} columns`")
+        st.markdown("**Columns:** " + ", ".join(f"`{c}`" for c in df_tz.columns.tolist()))
+        st.info(f"Timestamps converted from UTC → **{selected_tz_label}**")
+        st.dataframe(df_tz.head(10), use_container_width=True)
 
-    # Stage 4: "Subset for simplicity — take one week or one month"
-    # 1-min data: days × 24h × 60min rows per day
-    n_rows = days_to_show * 24 * 60
-    df = df_raw.tail(n_rows).copy() if len(df_raw) > n_rows else df_raw.copy()
+    # CHANGE 5 in action — proper date filter based on actual timestamps
+    df = date_range_filter(df_tz, key_prefix="real")
     show_sidebar_metrics(df)
 
-    # ── CHART 1: Line Graph of Close Price Over Time (Stage 5 step 1)
+    # Show timezone info banner
+    st.info(f"🕐 All times shown in **{selected_tz_label}**")
+
+    # ── CHART 1: Line Graph of Close Price Over Time
     col1, col2 = st.columns([2, 1])
     with col1:
         st.subheader("📈 Bitcoin Close Price Over Time")
@@ -344,8 +431,11 @@ if mode == "📊 Real Bitcoin Data":
             fig1.add_trace(go.Scatter(x=df["Timestamp"], y=rm - 2*rs,
                 mode="lines", name="Volatility Band (±2σ)", line=dict(width=0),
                 fill="tonexty", fillcolor="rgba(31,119,180,0.12)"))
-        fig1.update_layout(xaxis_title="Date", yaxis_title="Price (USD)",
-            hovermode="x unified", height=420, template="plotly_white")
+        fig1.update_layout(
+            xaxis_title=f"Date ({selected_tz_label.split(' ')[1].strip('()')} Time)",
+            yaxis_title="Price (USD)",
+            hovermode="x unified", height=420, template="plotly_white"
+        )
         st.plotly_chart(fig1, use_container_width=True)
 
     with col2:
@@ -368,33 +458,37 @@ if mode == "📊 Real Bitcoin Data":
             margin=dict(l=0, r=0, t=0, b=0))
         st.plotly_chart(fig_h, use_container_width=True)
 
-    # ── CHART 2: High vs Low Comparison (Stage 5 step 2)
+    # ── CHART 2: High vs Low
     st.subheader("📉 High vs Low Price Comparison")
-    st.markdown("*The gap between High and Low on each candle shows that minute's volatility.*")
+    st.markdown("*The gap between High and Low shows that period's volatility.*")
     fig2 = go.Figure()
     fig2.add_trace(go.Scatter(x=df["Timestamp"], y=df["High"],
         mode="lines", name="High", line=dict(color="green", width=1)))
     fig2.add_trace(go.Scatter(x=df["Timestamp"], y=df["Low"],
-        mode="lines", name="Low",  line=dict(color="red",   width=1),
+        mode="lines", name="Low", line=dict(color="red", width=1),
         fill="tonexty", fillcolor="rgba(0,180,0,0.07)"))
-    fig2.update_layout(xaxis_title="Date", yaxis_title="Price (USD)",
+    fig2.update_layout(
+        xaxis_title=f"Date ({selected_tz_label.split(' ')[1].strip('()')} Time)",
+        yaxis_title="Price (USD)",
         hovermode="x unified", height=320, template="plotly_white")
     st.plotly_chart(fig2, use_container_width=True)
 
-    # ── CHART 3: Volume Bar Chart (Stage 5 step 3)
+    # ── CHART 3: Volume
     if show_volume:
         st.subheader("📦 Volume Analysis")
-        st.markdown("*Compare if higher-volume minutes match with bigger price changes.*")
+        st.markdown("*Compare if higher-volume periods match with bigger price changes.*")
         fig3 = go.Figure()
         fig3.add_trace(go.Bar(x=df["Timestamp"], y=df["Volume"],
             name="Volume", marker_color="steelblue", opacity=0.7))
-        fig3.update_layout(xaxis_title="Date", yaxis_title="Volume (BTC)",
+        fig3.update_layout(
+            xaxis_title=f"Date ({selected_tz_label.split(' ')[1].strip('()')} Time)",
+            yaxis_title="Volume (BTC)",
             height=300, template="plotly_white")
         st.plotly_chart(fig3, use_container_width=True)
 
-    # ── CHART 4: Stable vs Volatile Periods (Stage 5 step 4)
+    # ── CHART 4: Stable vs Volatile
     st.subheader("🔀 Stable vs Volatile Periods")
-    st.markdown("*Flat lines = Stable market. Sharp spikes up/down = Volatile periods.*")
+    st.markdown("*Flat lines = Stable. Sharp spikes = Volatile.*")
     col3, col4 = st.columns(2)
     with col3:
         w = max(min(60, len(df) // 10), 2)
@@ -402,9 +496,9 @@ if mode == "📊 Real Bitcoin Data":
         fig4 = go.Figure()
         fig4.add_trace(go.Scatter(x=df["Timestamp"], y=df["Rolling_Vol"],
             mode="lines", line=dict(color="orange", width=1.5)))
-        fig4.update_layout(title=f"Rolling Volatility ({w}-minute window)",
-            xaxis_title="Date", yaxis_title="Std Dev ($)",
-            height=320, template="plotly_white")
+        fig4.update_layout(title=f"Rolling Volatility ({w}-period window)",
+            xaxis_title=f"Date ({selected_tz_label.split(' ')[1].strip('()')} Time)",
+            yaxis_title="Std Dev ($)", height=320, template="plotly_white")
         st.plotly_chart(fig4, use_container_width=True)
     with col4:
         med = df["Rolling_Vol"].median()
@@ -424,12 +518,12 @@ if mode == "📊 Real Bitcoin Data":
 elif mode == "🧮 Mathematical Simulation":
     st.header("🧮 Mathematical Simulation")
 
-    # Change 7 in action — no cache → all 4 sliders update chart immediately
     df_m = generate_mathematical_data(
-        pattern_type, amplitude, frequency, drift, noise_level, num_days
+        pattern_type, amplitude, frequency, drift, noise_level, num_days, selected_tz
     )
     show_sidebar_metrics(df_m)
 
+    st.info(f"🕐 All times shown in **{selected_tz_label}**")
     st.subheader(f"📊 Pattern: {pattern_type}")
 
     with st.expander("🧮 Mathematical Formula & Parameters"):
@@ -441,7 +535,6 @@ elif mode == "🧮 Mathematical Simulation":
             st.latex(r"Price(t)=Price(t-1)+\mathcal{N}(0,\,\sigma)")
         else:
             st.latex(r"Price(t)=45000+A\sin(\cdot)+\tfrac{A}{2}\cos(2\cdot)+\tfrac{A}{3}\sin(3\cdot)+D\cdot t")
-
         st.markdown(f"""
 | Parameter | Symbol | Value |
 |---|---|---|
@@ -453,7 +546,6 @@ elif mode == "🧮 Mathematical Simulation":
 | Days | T | **{num_days}** |
         """)
 
-    # ── CHART 1: Main price line (Stage 5 step 1)
     fig_m1 = go.Figure()
     fig_m1.add_trace(go.Scatter(
         x=df_m["Timestamp"], y=df_m["Price"],
@@ -463,26 +555,24 @@ elif mode == "🧮 Mathematical Simulation":
     ))
     fig_m1.update_layout(
         title=f"Simulated Bitcoin Price — {pattern_type}",
-        xaxis_title="Time", yaxis_title="Price (USD)",
+        xaxis_title=f"Time ({selected_tz_label.split(' ')[1].strip('()')})",
+        yaxis_title="Price (USD)",
         hovermode="x unified", height=480, template="plotly_white"
     )
     st.plotly_chart(fig_m1, use_container_width=True)
 
     col1, col2 = st.columns(2)
-
-    # ── CHART 2: High vs Low (Stage 5 step 2)
     with col1:
         st.subheader("📉 High vs Low")
         fhl = go.Figure()
         fhl.add_trace(go.Scatter(x=df_m["Timestamp"], y=df_m["High"],
             mode="lines", name="High", line=dict(color="green", width=1)))
         fhl.add_trace(go.Scatter(x=df_m["Timestamp"], y=df_m["Low"],
-            mode="lines", name="Low",  line=dict(color="red",   width=1), fill="tonexty"))
+            mode="lines", name="Low",  line=dict(color="red", width=1), fill="tonexty"))
         fhl.update_layout(height=300, template="plotly_white",
             xaxis_title="Time", yaxis_title="Price (USD)")
         st.plotly_chart(fhl, use_container_width=True)
 
-    # ── CHART 3: Volume (Stage 5 step 3)
     with col2:
         st.subheader("📦 Volume")
         fvol = go.Figure()
@@ -492,12 +582,10 @@ elif mode == "🧮 Mathematical Simulation":
             xaxis_title="Time", yaxis_title="Volume")
         st.plotly_chart(fvol, use_container_width=True)
 
-    # ── CHART 4: Stable vs Volatile (Stage 5 step 4)
     st.subheader("🔀 Stable vs Volatile Periods")
     df_m["Rolling_Vol"] = df_m["Price"].rolling(24).std()
     med = df_m["Rolling_Vol"].median()
     df_m["Period"] = df_m["Rolling_Vol"].apply(lambda x: "Volatile" if x > med else "Stable")
-
     col3, col4 = st.columns(2)
     with col3:
         frv = go.Figure()
@@ -516,34 +604,15 @@ elif mode == "🧮 Mathematical Simulation":
         fp.update_layout(height=300)
         st.plotly_chart(fp, use_container_width=True)
 
-    # Educational section (Stage 5 tip)
     st.markdown("---")
     st.markdown("### 🎓 Understanding the Mathematics")
     c1, c2, c3 = st.columns(3)
     with c1:
-        st.info("""
-**🌊 Sine / Cosine Waves**
-Smooth, repeating price cycles.
-- **Amplitude** = height of swing
-- **Frequency** = cycles per period
-- Formula: `A · sin(2πft/T)`
-        """)
+        st.info("**🌊 Sine / Cosine Waves**\nSmooth, repeating price cycles.\n- **Amplitude** = height of swing\n- **Frequency** = cycles per period\n- Formula: `A · sin(2πft/T)`")
     with c2:
-        st.info("""
-**📈 Drift (Integral)**
-Models long-term price slope.
-- Calculated as: `∫D dt = D·t`
-- Positive → upward trend
-- Negative → downward trend
-        """)
+        st.info("**📈 Drift (Integral)**\nModels long-term price slope.\n- Calculated as: `∫D dt = D·t`\n- Positive → upward trend\n- Negative → downward trend")
     with c3:
-        st.info("""
-**🎲 Random Noise**
-Models sudden market jumps.
-- Drawn from `N(0, σ)`
-- Higher σ → more chaotic
-- Cumulative sum = random walk
-        """)
+        st.info("**🎲 Random Noise**\nModels sudden market jumps.\n- Drawn from `N(0, σ)`\n- Higher σ → more chaotic\n- Cumulative sum = random walk")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -557,11 +626,13 @@ else:
     if err:
         st.warning(f"⚠️ {err} — using sample data.")
 
-    n_rows = days_to_show * 24 * 60
-    df_r = df_raw.tail(n_rows).copy() if len(df_raw) > n_rows else df_raw.copy()
+    df_tz = apply_timezone(df_raw, tz)
+    df_r  = date_range_filter(df_tz, key_prefix="compare")
     df_m  = generate_mathematical_data(
-        pattern_type, amplitude, frequency, drift, noise_level, num_days
+        pattern_type, amplitude, frequency, drift, noise_level, num_days, selected_tz
     )
+
+    st.info(f"🕐 All times shown in **{selected_tz_label}**")
 
     col1, col2 = st.columns(2)
     with col1:

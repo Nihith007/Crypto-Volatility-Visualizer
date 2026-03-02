@@ -19,7 +19,7 @@ st.set_page_config(
 
 st.title("₿ Crypto Volatility Visualizer")
 st.markdown("### Simulating Market Swings with Mathematics for AI and Python")
-st.markdown("*Using sine, cosine, random noise, and integrals to model cryptocurrency volatility*")
+st.markdown("Using sine, cosine, random noise, and integrals to model cryptocurrency volatility")
 st.markdown("---")
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -383,15 +383,15 @@ if mode == "📊 Real Bitcoin Data":
 
     if err:
         st.warning(
-            f"⚠️ **GitHub fetch failed:** {err}\n\n"
-            "**To fix:** Upload `btcusd_1-min_data.csv` to your GitHub repo "
-            "`Nihith007/Crypto-Volatility-Visualizer`.\n\n"
-            "*Showing generated sample data in the meantime.*"
+            f"⚠️ *GitHub fetch failed:* {err}\n\n"
+            "*To fix:* Upload btcusd_1-min_data.csv to your GitHub repo "
+            "Nihith007/Crypto-Volatility-Visualizer.\n\n"
+            "Showing generated sample data in the meantime."
         )
     elif src == "github":
         st.success(
-            f"✅ Loaded `btcusd_1-min_data.csv` from GitHub — "
-            f"**{len(df_raw):,} rows** | "
+            f"✅ Loaded btcusd_1-min_data.csv from GitHub — "
+            f"*{len(df_raw):,} rows* | "
             f"{df_raw['Timestamp'].min().date()} → {df_raw['Timestamp'].max().date()}"
         )
 
@@ -400,9 +400,9 @@ if mode == "📊 Real Bitcoin Data":
 
     # Dataset preview
     with st.expander("🔍 Dataset Preview — head() & shape (Stage 4 check)"):
-        st.markdown(f"**Shape:** `{df_tz.shape[0]:,} rows × {df_tz.shape[1]} columns`")
-        st.markdown("**Columns:** " + ", ".join(f"`{c}`" for c in df_tz.columns.tolist()))
-        st.info(f"Timestamps converted from UTC → **{selected_tz_label}**")
+        st.markdown(f"*Shape:* {df_tz.shape[0]:,} rows × {df_tz.shape[1]} columns")
+        st.markdown("*Columns:* " + ", ".join(f"{c}" for c in df_tz.columns.tolist()))
+        st.info(f"Timestamps converted from UTC → *{selected_tz_label}*")
         st.dataframe(df_tz.head(10), use_container_width=True)
 
     # CHANGE 5 in action — proper date filter based on actual timestamps
@@ -410,7 +410,7 @@ if mode == "📊 Real Bitcoin Data":
     show_sidebar_metrics(df)
 
     # Show timezone info banner
-    st.info(f"🕐 All times shown in **{selected_tz_label}**")
+    st.info(f"🕐 All times shown in *{selected_tz_label}*")
 
     # ── CHART 1: Line Graph of Close Price Over Time
     col1, col2 = st.columns([2, 1])
@@ -460,7 +460,7 @@ if mode == "📊 Real Bitcoin Data":
 
     # ── CHART 2: High vs Low
     st.subheader("📉 High vs Low Price Comparison")
-    st.markdown("*The gap between High and Low shows that period's volatility.*")
+    st.markdown("The gap between High and Low shows that period's volatility.")
     fig2 = go.Figure()
     fig2.add_trace(go.Scatter(x=df["Timestamp"], y=df["High"],
         mode="lines", name="High", line=dict(color="green", width=1)))
@@ -476,7 +476,7 @@ if mode == "📊 Real Bitcoin Data":
     # ── CHART 3: Volume
     if show_volume:
         st.subheader("📦 Volume Analysis")
-        st.markdown("*Compare if higher-volume periods match with bigger price changes.*")
+        st.markdown("Compare if higher-volume periods match with bigger price changes.")
         fig3 = go.Figure()
         fig3.add_trace(go.Bar(x=df["Timestamp"], y=df["Volume"],
             name="Volume", marker_color="steelblue", opacity=0.7))
@@ -488,7 +488,7 @@ if mode == "📊 Real Bitcoin Data":
 
     # ── CHART 4: Stable vs Volatile
     st.subheader("🔀 Stable vs Volatile Periods")
-    st.markdown("*Flat lines = Stable. Sharp spikes = Volatile.*")
+    st.markdown("Flat lines = Stable. Sharp spikes = Volatile.")
     col3, col4 = st.columns(2)
     with col3:
         w = max(min(60, len(df) // 10), 2)
@@ -523,7 +523,7 @@ elif mode == "🧮 Mathematical Simulation":
     )
     show_sidebar_metrics(df_m)
 
-    st.info(f"🕐 All times shown in **{selected_tz_label}**")
+    st.info(f"🕐 All times shown in *{selected_tz_label}*")
     st.subheader(f"📊 Pattern: {pattern_type}")
 
     with st.expander("🧮 Mathematical Formula & Parameters"):
@@ -539,11 +539,11 @@ elif mode == "🧮 Mathematical Simulation":
 | Parameter | Symbol | Value |
 |---|---|---|
 | Base Price | — | $45,000 |
-| Amplitude | A | **${amplitude:,}** |
-| Frequency | f | **{frequency} cycles** |
-| Drift | D | **${drift}/day** |
-| Noise σ | σ | **±${noise_level}** |
-| Days | T | **{num_days}** |
+| Amplitude | A | *${amplitude:,}* |
+| Frequency | f | *{frequency} cycles* |
+| Drift | D | *${drift}/day* |
+| Noise σ | σ | *±${noise_level}* |
+| Days | T | *{num_days}* |
         """)
 
     fig_m1 = go.Figure()
@@ -608,11 +608,11 @@ elif mode == "🧮 Mathematical Simulation":
     st.markdown("### 🎓 Understanding the Mathematics")
     c1, c2, c3 = st.columns(3)
     with c1:
-        st.info("**🌊 Sine / Cosine Waves**\nSmooth, repeating price cycles.\n- **Amplitude** = height of swing\n- **Frequency** = cycles per period\n- Formula: `A · sin(2πft/T)`")
+        st.info("*🌊 Sine / Cosine Waves\nSmooth, repeating price cycles.\n- **Amplitude* = height of swing\n- *Frequency* = cycles per period\n- Formula: A · sin(2πft/T)")
     with c2:
-        st.info("**📈 Drift (Integral)**\nModels long-term price slope.\n- Calculated as: `∫D dt = D·t`\n- Positive → upward trend\n- Negative → downward trend")
+        st.info("*📈 Drift (Integral)*\nModels long-term price slope.\n- Calculated as: ∫D dt = D·t\n- Positive → upward trend\n- Negative → downward trend")
     with c3:
-        st.info("**🎲 Random Noise**\nModels sudden market jumps.\n- Drawn from `N(0, σ)`\n- Higher σ → more chaotic\n- Cumulative sum = random walk")
+        st.info("*🎲 Random Noise*\nModels sudden market jumps.\n- Drawn from N(0, σ)\n- Higher σ → more chaotic\n- Cumulative sum = random walk")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -632,7 +632,7 @@ else:
         pattern_type, amplitude, frequency, drift, noise_level, num_days, selected_tz
     )
 
-    st.info(f"🕐 All times shown in **{selected_tz_label}**")
+    st.info(f"🕐 All times shown in *{selected_tz_label}*")
 
     col1, col2 = st.columns(2)
     with col1:
@@ -692,6 +692,6 @@ else:
 # ─────────────────────────────────────────────────────────────────────────────
 st.markdown("---")
 st.markdown("""
-**Crypto Volatility Visualizer**
-*Built with Python* | **FinTechLab Pvt. Ltd.**
+*Crypto Volatility Visualizer*
+Built with Python | *FinTechLab Pvt. Ltd.*
 """)

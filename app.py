@@ -33,7 +33,7 @@ st.markdown("---")
 # sampled version — see instructions at bottom of this file.
 # ─────────────────────────────────────────────────────────────────────────────
 GITHUB_CSV_URL = (
-    "https://raw.githubusercontent.com/Nihith007/Crypto-Volatility-Visualizer"
+    "https://raw.githubusercontent.com/Nihith007/Crypto-Volatility-Visualizer/refs/heads"
     "/main/btcusd_1-min_data.csv"
 )
 

@@ -21,17 +21,7 @@ st.markdown("### Simulating Market Swings with Mathematics for AI and Python")
 st.markdown("*Using sine, cosine, random noise, and integrals to model cryptocurrency volatility*")
 st.markdown("---")
 
-# ─────────────────────────────────────────────────────────────────────────────
-# CHANGE 1 ── GITHUB CSV URL
-# Your notebook (Copy_of_Data_Mining_Python_Lab.ipynb) loads:
-#   file_path = '/content/btcusd_1-min_data.csv'
-# Columns: Timestamp (Unix epoch seconds), Open, High, Low, Close, Volume
-# First row showed: Timestamp=1.325412e+09, all prices=4.58, Volume=0.0
-#
-# ACTION REQUIRED: Upload btcusd_1-min_data.csv to your GitHub repo, then this
-# URL will work automatically. If the file is too large (>100MB), upload a
-# sampled version — see instructions at bottom of this file.
-# ─────────────────────────────────────────────────────────────────────────────
+
 GITHUB_CSV_URL = (
     "https://raw.githubusercontent.com/Nihith007/Crypto-Volatility-Visualizer"
     "/refs/heads/main/btcusd_1-min_data.csv"
@@ -64,10 +54,7 @@ data_source           = "🌐 GitHub (Auto-fetch)"
 
 if mode == "📊 Real Bitcoin Data":
     st.sidebar.header("📁 Data Source")
-    # CHANGE 2 ── GitHub auto-fetch radio added
-    # WHERE: Sidebar, Real Bitcoin Data mode
-    # WHY: Assignment Stage 4 requires loading data from the GitHub repository,
-    #      not just from a local file upload. This option fetches it automatically.
+
     data_source = st.sidebar.radio(
         "Source:", ["🌐 GitHub (Auto-fetch)", "📂 Upload CSV"]
     )
@@ -112,12 +99,7 @@ elif mode == "🧮 Mathematical Simulation":
         "Drift ($/day)", -50, 50, 10, 5,
         help="Long-term trend slope — computed as integral ∫D dt = D·t"
     )
-    # CHANGE 4 ── Noise slider fixed
-    # WHERE: Sidebar, Mathematical Simulation mode
-    # WHY IT WAS BROKEN: @st.cache_data on generate_mathematical_data() caused
-    #   Streamlit to return the same cached output regardless of the slider value.
-    #   Changing noise from 100→200 appeared to have no effect on the chart.
-    # FIX: @st.cache_data removed from generate_mathematical_data() — see Change 7.
+
     noise_level = st.sidebar.slider(
         "Noise Level (σ)", 0, 500, 100, 10,
         help="Std deviation of random jumps N(0,σ) — NOW updates chart instantly"
@@ -142,15 +124,6 @@ else:  # Compare Both
     days_to_show = st.sidebar.slider("Real data days",   1,   30,    7)
     num_days     = st.sidebar.slider("Sim days",         1,   30,    7)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# CHANGE 5 ── fetch_github_data() — NEW FUNCTION
-# WHERE: Data loading section (replaces the old uploaded_file-only approach)
-# WHY: Assignment Stage 4 says "Loading the dataset: Open the CSV file in Python"
-#      Your notebook did this via Google Drive. In Streamlit Cloud the equivalent
-#      is fetching from GitHub using requests. Cached so it only fetches once
-#      per session, not on every slider interaction.
-# ─────────────────────────────────────────────────────────────────────────────
 @st.cache_data(show_spinner="📡 Fetching btcusd_1-min_data.csv from GitHub…")
 def fetch_github_data():
     try:
@@ -163,19 +136,6 @@ def fetch_github_data():
         return None, str(e)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# CHANGE 6 ── normalize_dataframe() — NEW FUNCTION
-# WHERE: Data loading section
-# WHY: Replicates Stage 4 data preparation steps from the notebook:
-#   • Timestamp column (Unix seconds like 1.325412e+09) → datetime
-#     [notebook: pd.to_datetime(df['Timestamp'], unit='s')]
-#   • Close column → renamed to Price
-#     [Stage 4: "Focus on Close Price — rename Close → Price"]
-#   • dropna() on missing values
-#     [Stage 4: "Handle missing data — drop them"]
-#   • sort_values('Timestamp')
-#     [Stage 4: preparation before plotting]
-# ─────────────────────────────────────────────────────────────────────────────
 def normalize_dataframe(df):
     df = df.copy()
     df.columns = [c.strip() for c in df.columns]
@@ -253,18 +213,7 @@ def load_real_data(source="github", uploaded_file=None):
     return normalize_dataframe(raw), None
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# CHANGE 7 ── @st.cache_data REMOVED from generate_mathematical_data()
-# WHERE: Mathematical data generator function
-# WHY THIS FIXES ALL SLIDERS:
-#   Previously the function had @st.cache_data. Streamlit caches by hashing
-#   all function arguments. The problem was numpy's random number generator —
-#   even when noise_level changed, the numpy random calls inside produced
-#   values that looked similar OR Streamlit's hash didn't detect the change,
-#   so it returned the same cached DataFrame. Result: sliders appeared frozen.
-#   Removing @st.cache_data means the function runs fresh on EVERY interaction,
-#   so amplitude, frequency, drift, and noise_level all update the chart live.
-# ─────────────────────────────────────────────────────────────────────────────
+
 def generate_mathematical_data(pattern, amp, freq, drift_val, noise, days):
     """
     Generates simulated Bitcoin price using mathematical functions.
@@ -363,10 +312,7 @@ if mode == "📊 Real Bitcoin Data":
             f"{df_raw['Timestamp'].min().date()} → {df_raw['Timestamp'].max().date()}"
         )
 
-    # CHANGE 8 ── Dataset preview expander
-    # WHERE: Real Bitcoin Data mode, below header
-    # WHY: Stage 4 tip — "always check the dataset shape (rows × columns) before starting"
-    #      and "print the first few rows" — mirrors notebook's print(data.head(101))
+
     with st.expander("🔍 Dataset Preview — head() & shape (Stage 4 check)"):
         st.markdown(f"**Shape:** `{df_raw.shape[0]:,} rows × {df_raw.shape[1]} columns`")
         st.markdown("**Columns:** " + ", ".join(f"`{c}`" for c in df_raw.columns.tolist()))
@@ -678,20 +624,3 @@ st.markdown("""
 **Crypto Volatility Visualizer** | Mathematics for AI-II — FA-2  
 *Built with Python · Streamlit · NumPy · Plotly* | **FinTechLab Pvt. Ltd.**
 """)
-
-# =============================================================================
-# HOW TO ADD YOUR CSV TO GITHUB (btcusd_1-min_data.csv is ~500MB — too large)
-# =============================================================================
-# OPTION A — Create a small sampled version (recommended):
-#   1. In Google Colab, after loading the full CSV, run:
-#        sample = data.tail(10000)          # last 10,000 rows (~1 week of 1-min data)
-#        sample.to_csv('btc_sample.csv', index=False)
-#   2. Download btc_sample.csv from Colab
-#   3. Upload it to your GitHub repo as btcusd_1-min_data.csv
-#   4. The GITHUB_CSV_URL in this file will then work automatically
-#
-# OPTION B — Use Git LFS for large files:
-#   git lfs install
-#   git lfs track "*.csv"
-#   git add btcusd_1-min_data.csv && git commit && git push
-# =============================================================================

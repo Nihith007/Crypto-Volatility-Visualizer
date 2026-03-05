@@ -696,6 +696,6 @@ else:
 # ─────────────────────────────────────────────────────────────────────────────
 st.markdown("---")
 st.markdown("""
-**Crypto Volatility Visualizer**
+**Crypto Volatility Visualizer** |
 *Built with Python* | **FinTechLab Pvt. Ltd.**
 """)
